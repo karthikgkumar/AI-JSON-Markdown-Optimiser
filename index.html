@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM JSON to Markdown Optimizer</title>
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+
+  <!-- Marked.js — Markdown preview renderer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Font Awesome — Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+  <!-- Local Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- ── Header & Navbar ─────────────────────────────────── -->
+  <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="switchPage('converter')">
+        <i class="fa-solid fa-wand-magic-sparkles text-blue-600 text-xl"></i>
+        <h1 class="text-xl font-bold text-slate-900 hidden sm:block">LLM Markdown Optimizer</h1>
+      </div>
+      <nav class="flex gap-4 sm:gap-8 text-sm font-semibold">
+        <a href="#"         id="navConverter" class="text-blue-600 transition-colors">Converter</a>
+        <a href="#features" id="navFeatures"  class="text-slate-500 hover:text-blue-600 transition-colors hidden md:block">Latency Fixes</a>
+        <a href="#"         id="navFormats"   class="text-slate-500 hover:text-blue-600 transition-colors">Supported Formats</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       VIEW: CONVERTER + FEATURES
+  ════════════════════════════════════════════════════════════ -->
+  <div id="view-converter" class="flex flex-col flex-grow">
+
+    <!-- Main converter panel -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex flex-col md:flex-row gap-6">
+
+      <!-- Left — JSON Input -->
+      <div class="flex-1 flex flex-col gap-3 min-w-0">
+        <div class="flex justify-between items-end">
+          <label for="jsonInput" class="block text-sm font-semibold text-slate-700">Raw JSON Input</label>
+          <button id="formatJsonBtn" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            <i class="fa-solid fa-align-left mr-1"></i>Format JSON
+          </button>
+        </div>
+        <div class="relative flex-grow flex flex-col">
+          <textarea
+            id="jsonInput"
+            class="custom-scroll flex-grow w-full p-4 border border-slate-300 rounded-xl shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white resize-none"
+            placeholder='Paste your JSON here...
+e.g.
+{
+  "user_name": "AI Engineer",
+  "status": "active",
+  "skills": ["Python", "Prompts"]
+}'></textarea>
+
+          <!-- Convert button overlay -->
+          <div class="absolute bottom-4 right-4">
+            <button id="convertBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-semibold shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2">
+              <span>Convert</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+        <div id="errorMessage" class="hidden text-red-600 text-sm font-medium mt-1">
+          <i class="fa-solid fa-circle-exclamation mr-1"></i>
+          <span id="errorText">Invalid JSON format.</span>
+        </div>
+      </div>
+
+      <!-- Right — Output & Analysis -->
+      <div class="flex-1 flex flex-col gap-3 min-w-0">
+
+        <!-- Tab Bar -->
+        <div class="flex justify-between items-end border-b border-slate-200 pb-[1px]">
+          <div class="flex gap-3 sm:gap-6 overflow-x-auto custom-scroll">
+            <button id="tabMarkdown" class="text-sm font-bold text-blue-600 border-b-2 border-blue-600 pb-1 -mb-[2px] transition-colors whitespace-nowrap">Raw Markdown</button>
+            <button id="tabPreview"  class="text-sm font-semibold text-slate-500 hover:text-slate-800 pb-1 -mb-[2px] transition-colors border-b-2 border-transparent whitespace-nowrap">Preview</button>
+            <button id="tabLatency" class="text-sm font-semibold text-slate-500 hover:text-slate-800 pb-1 -mb-[2px] transition-colors border-b-2 border-transparent flex items-center whitespace-nowrap">
+              Latency Analysis
+              <span class="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0.5 rounded ml-1 hidden sm:inline">NEW</span>
+            </button>
+          </div>
+          <div class="flex gap-4 pb-1">
+            <span id="copySuccess" class="hidden text-xs text-green-600 font-medium transition-opacity duration-300">
+              <i class="fa-solid fa-check mr-1"></i>Copied!
+            </span>
+            <button id="copyBtn" class="text-xs text-slate-600 hover:text-slate-900 font-medium cursor-not-allowed opacity-50 transition-all" disabled>
+              <i class="fa-regular fa-copy mr-1"></i>Copy
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Panes -->
+        <textarea
+          id="markdownOutput"
+          class="custom-scroll flex-grow w-full p-4 border border-slate-300 rounded-xl shadow-sm bg-slate-50 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-slate-400 font-mono"
+          readonly
+          placeholder="Your optimized Markdown will appear here..."></textarea>
+
+        <div id="previewOutput" class="hidden custom-scroll flex-grow w-full p-6 border border-slate-300 rounded-xl shadow-sm bg-white overflow-y-auto prose prose-sm prose-slate max-w-none">
+          <div class="h-full flex flex-col items-center justify-center text-slate-400 text-center not-prose">
+            <i class="fa-regular fa-eye text-4xl mb-3 text-slate-200"></i>
+            <p>Your formatted preview will appear here.</p>
+          </div>
+        </div>
+
+        <div id="latencyOutput" class="hidden custom-scroll flex-grow w-full p-5 border border-slate-300 rounded-xl shadow-sm bg-white overflow-y-auto text-sm">
+          <div class="h-full flex flex-col items-center justify-center text-slate-400 text-center">
+            <i class="fa-solid fa-bolt text-4xl mb-3 text-slate-200"></i>
+            <p>Convert a JSON payload to run the latency analysis.</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Features section -->
+    <section id="features" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full border-t border-slate-200 bg-slate-50/50">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-extrabold text-slate-900 mb-4">Optimize Your Inputs for Speed</h2>
+        <p class="text-lg text-slate-600 max-w-3xl mx-auto">Stop paying frontier-model prices for routine data extraction. Our scripts analyze your JSON payloads before they hit the LLM.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-5 text-xl">
+            <i class="fa-solid fa-scale-balanced"></i>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">1. Right-Size the Model</h3>
+          <p class="text-slate-600 leading-relaxed">Asking reasoning models to parse simple data is slow. We calculate object depth and tokens to recommend routing between fast models (Gemini Flash) and reasoning models (Gemini Pro).</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-5 text-xl">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">2. Reduce Instruction Overhead</h3>
+          <p class="text-slate-600 leading-relaxed">If we detect large, repetitive array structures in your payload, we recommend fine-tuning. This allows the model to bypass lengthy instructions and process data on "muscle memory."</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-5 text-xl">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <h3 class="text-xl font-bold text-slate-800 mb-3">3. Cap the "Thinking Budget"</h3>
+          <p class="text-slate-600 leading-relaxed">For flat, low-complexity payloads, deep thought isn't required. We generate parameters (like <code>thoughtLevel: LOW</code>) to force faster, heuristic-based responses from modern models.</p>
+        </div>
+
+      </div>
+    </section>
+  </div><!-- /view-converter -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       VIEW: SUPPORTED FORMATS
+  ════════════════════════════════════════════════════════════ -->
+  <div id="view-formats" class="hidden flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+    <div class="mb-10 text-center">
+      <h2 class="text-3xl font-extrabold text-slate-900 mb-4">Supported JSON Formats</h2>
+      <p class="text-lg text-slate-600">The LLM Markdown Optimizer automatically detects the structure of your JSON and routes it to the most token-efficient Markdown representation. Here is how it handles different data shapes.</p>
+    </div>
+
+    <div class="space-y-12">
+
+      <!-- Format 1 — Flat Key-Value -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 p-5">
+          <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-list-ul text-blue-600"></i> 1. Flat Key-Value Pairs (The "Dictionary")
+          </h3>
+          <p class="text-slate-600 mt-2 text-sm">Used for a single entity or object. The tool converts this into a clean, bulleted list. It automatically normalizes camelCase keys and translates booleans/nulls into human-readable text.</p>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Input JSON</div>
+            <pre class="bg-slate-900 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto"><code>{
+  "user_id": 101,
+  "firstName": "Ada",
+  "isActive": true,
+  "cancellation_date": null
+}</code></pre>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Optimized Markdown</div>
+            <pre class="bg-blue-50 border border-blue-100 text-slate-800 p-4 rounded-xl text-sm overflow-x-auto"><code>- **User Id**: 101
+- **First Name**: Ada
+- **Is Active**: Yes</code></pre>
+            <p class="text-xs text-slate-500 mt-2 italic">*Notice how <code>cancellation_date</code> is dropped to save tokens, and <code>isActive</code> becomes "Yes".</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Format 2 — Array of Uniform Objects -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 p-5">
+          <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-table text-amber-600"></i> 2. Arrays of Uniform Objects (The "Database Table")
+          </h3>
+          <p class="text-slate-600 mt-2 text-sm">Used for lists of items that share similar keys. If left as JSON, keys repeat for every item, wasting tokens. The tool extracts keys into a single header row and generates a Markdown table.</p>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Input JSON</div>
+            <pre class="bg-slate-900 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto"><code>[
+  {"id": 1, "taskName": "Scrape Data", "status": "Done"},
+  {"id": 2, "taskName": "Parse JSON", "status": "Pending"}
+]</code></pre>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Optimized Markdown</div>
+            <pre class="bg-amber-50 border border-amber-100 text-slate-800 p-4 rounded-xl text-sm overflow-x-auto"><code>| Id | Task Name | Status |
+|---|---|---|
+| 1 | Scrape Data | Done |
+| 2 | Parse JSON | Pending |</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Format 3 — Nested / Hierarchical -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="bg-slate-50 border-b border-slate-200 p-5">
+          <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-sitemap text-purple-600"></i> 3. Nested / Hierarchical Data (The "Tree")
+          </h3>
+          <p class="text-slate-600 mt-2 text-sm">Used for complex payloads. Creates structural boundaries using headings (<code>##</code>) and nested bullets. <strong>Crucial Feature:</strong> If it detects an array of objects inside nested data, it renders that specific section as a Markdown table.</p>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Input JSON</div>
+            <pre class="bg-slate-900 text-slate-50 p-4 rounded-xl text-sm overflow-x-auto"><code>{
+  "project": "Migration",
+  "details": {
+    "team_size": 5,
+    "tools": ["Python", "LLMs"]
+  },
+  "milestones": [
+    {"phase": 1, "name": "Planning"},
+    {"phase": 2, "name": "Execution"}
+  ]
+}</code></pre>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Optimized Markdown</div>
+            <pre class="bg-purple-50 border border-purple-100 text-slate-800 p-4 rounded-xl text-sm overflow-x-auto"><code>- **Project**: Migration
+
+## Details
+- **Team Size**: 5
+- **Tools**:
+  - Python
+  - LLMs
+
+## Milestones (Data Table)
+| Phase | Name |
+|---|---|
+| 1 | Planning |
+| 2 | Execution |</code></pre>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /view-formats -->
+
+  <!-- JS Modules (must be type="module" to use ES import/export) -->
+  <script type="module" src="js/ui.js"></script>
+
+</body>
+</html>
